@@ -47,7 +47,7 @@ if uploaded_file:
 
     elif selected_role == "AI Business Advisor (ChatGPT)":
         st.header("🤖 AI Project Advisor")
-        openai_key = st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else st.text_input("Enter OpenAI API Key", type="password")
+        openai_key = st.secrets["AUTH_KEY"] if "AUTH_KEY" in st.secrets else st.text_input("Enter OpenAI API Key", type="password")
         question = st.text_area("Ask a project-related question:")
         if st.button("Ask AI") and openai_key and question:
             openai.api_key = openai_key
