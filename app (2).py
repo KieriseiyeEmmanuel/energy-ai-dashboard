@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import numpy_financial as npf
 import plotly.express as px
-import openai
+import cohere  # ✅ NEW: Using Cohere instead of OpenAI
 
 st.set_page_config(page_title="AI Energy Analyst Dashboard", layout="wide")
 st.title("🔬 AI Energy & Business Intelligence Dashboard")
@@ -19,7 +19,7 @@ if uploaded_file:
         "Market Intelligence (Oil Prices)",
         "Energy Economist (Policy Scenarios)",
         "Supply Chain Analyst (Logistics KPIs)",
-        "AI Business Advisor (ChatGPT)"
+        "AI Business Advisor (Cohere)"
     ]
     selected_role = st.sidebar.radio("Select Role Module", roles)
 
@@ -45,23 +45,21 @@ if uploaded_file:
         project_df["Year"] = list(range(1, len(project_df) + 1))
         st.plotly_chart(px.bar(project_df, x="Year", y="Cash Flow (USD)"), use_container_width=True)
 
-    elif selected_role == "AI Business Advisor (ChatGPT)":
-        st.header("🤖 AI Project Advisor")
-        openai_key = st.secrets["AUTH_KEY"] if "AUTH_KEY" in st.secrets else st.text_input("Enter OpenAI API Key", type="password")
+    elif selected_role == "AI Business Advisor (Cohere)":
+        st.header("🤖 AI Project Advisor (Free via Cohere)")
+        cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("Enter Cohere API Key", type="password")
         question = st.text_area("Ask a project-related question:")
 
-        if st.button("Ask AI") and openai_key and question:
+        if st.button("Ask AI") and cohere_key and question:
             try:
-                client = openai.OpenAI(api_key=openai_key)  # For openai>=1.0.0
-                prompt = f"You are an energy business analyst. Answer the following: {question}"
-
-                response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": prompt}]
+                co = cohere.Client(cohere_key)
+                response = co.chat(
+                    message=question,
+                    model="command-r-plus",
+                    temperature=0.7
                 )
-                st.success(response.choices[0].message.content)
-
+                st.success(response.text)
             except Exception as e:
-                st.error(f"OpenAI Error: {e}")
+                st.error(f"Cohere Error: {e}")
 else:
     st.info("Upload a file to begin.")
