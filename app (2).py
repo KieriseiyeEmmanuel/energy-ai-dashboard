@@ -49,15 +49,18 @@ if uploaded_file:
         st.header("🤖 AI Project Advisor")
         openai_key = st.secrets["AUTH_KEY"] if "AUTH_KEY" in st.secrets else st.text_input("Enter OpenAI API Key", type="password")
         question = st.text_area("Ask a project-related question:")
+
         if st.button("Ask AI") and openai_key and question:
-            openai.api_key = openai_key
-            prompt = f"You are an energy business analyst. Answer the following: {question}"
             try:
-                response = openai.ChatCompletion.create(
+                client = openai.OpenAI(api_key=openai_key)  # For openai>=1.0.0
+                prompt = f"You are an energy business analyst. Answer the following: {question}"
+
+                response = client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[{"role": "user", "content": prompt}]
                 )
                 st.success(response.choices[0].message.content)
+
             except Exception as e:
                 st.error(f"OpenAI Error: {e}")
 else:
