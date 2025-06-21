@@ -5,3 +5,4 @@ numpy-financial
 openpyxl
 plotly
 openai
+cohere
