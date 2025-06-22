@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import numpy_financial as npf
 import plotly.express as px
-import cohere  # ✅ NEW: Using Cohere instead of OpenAI
+import cohere  # ✅ Cohere for free AI responses
 
 st.set_page_config(page_title="AI Energy Analyst Dashboard", layout="wide")
 st.title("🔬 AI Energy & Business Intelligence Dashboard")
@@ -46,19 +46,38 @@ if uploaded_file:
         st.plotly_chart(px.bar(project_df, x="Year", y="Cash Flow (USD)"), use_container_width=True)
 
     elif selected_role == "AI Business Advisor (Cohere)":
-        st.header("🤖 AI Project Advisor (Free via Cohere)")
+        st.header("🤖 AI Project Advisor (with file understanding)")
         cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("Enter Cohere API Key", type="password")
-        question = st.text_area("Ask a project-related question:")
+        question = st.text_area("Ask something about your uploaded data:")
 
         if st.button("Ask AI") and cohere_key and question:
             try:
                 co = cohere.Client(cohere_key)
+
+                # Convert uploaded Excel to readable summary
+                with st.spinner("Reading your file..."):
+                    df_summary = df.describe(include='all').fillna('').to_string()
+                    head = df.head(5).to_string(index=False)
+                    full_context = f"""Here is a preview of the uploaded dataset:\n\n{head}\n\nSummary Statistics:\n{df_summary}"""
+
+                # Combine file context and user question
+                full_prompt = f"""
+You are a data analyst assistant. Use the uploaded Excel data below to answer the user's question intelligently.
+
+DATA:
+{full_context}
+
+QUESTION:
+{question}
+"""
+
                 response = co.chat(
-                    message=question,
+                    message=full_prompt,
                     model="command-r-plus",
-                    temperature=0.7
+                    temperature=0.5
                 )
                 st.success(response.text)
+
             except Exception as e:
                 st.error(f"Cohere Error: {e}")
 else:
