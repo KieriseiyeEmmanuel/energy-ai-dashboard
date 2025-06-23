@@ -22,7 +22,7 @@ roles = [
     "Market Intelligence (Oil Prices)",
     "Energy Economist (Policy Scenarios)",
     "Supply Chain Analyst (Logistics KPIs)",
-    "AI Business Advisor (Cohere)"
+    "Ask Vora"
 ]
 selected_role = st.sidebar.radio("Select Role Module", roles)
 
@@ -139,8 +139,8 @@ if uploaded_file:
         fig = px.box(df, x="Site", y=selected_kpi, title=f"{selected_kpi} Distribution by Site")
         st.plotly_chart(fig, use_container_width=True)
 
-    elif selected_role == "AI Business Advisor (Cohere)":
-        st.header("🤖 AI Project Advisor (with file understanding)")
+    elif selected_role == "Ask Vora":
+        st.header("🤖 Ask Vora - your AI Energy Advisor")
         cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("Enter Cohere API Key", type="password")
         question = st.text_area("Ask something about your uploaded data:")
 
@@ -151,7 +151,7 @@ if uploaded_file:
                 head = df.head(5).to_string(index=False)
                 context = f"Here is a preview of the uploaded dataset:\n\n{head}\n\nSummary Statistics:\n{df_summary}"
                 full_prompt = f"""
-You are a helpful business analyst AI. Use the uploaded dataset below to answer the user's question intelligently.
+You are Vora, a helpful business analyst AI. Use the uploaded dataset below to answer the user's question intelligently.
 
 DATA:
 {context}
