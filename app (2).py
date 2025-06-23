@@ -22,7 +22,7 @@ roles = [
     "Market Intelligence (Oil Prices)",
     "Energy Economist (Policy Scenarios)",
     "Supply Chain Analyst (Logistics KPIs)",
-    "Ask Vora"
+    "AI Business Advisor (Cohere)"
 ]
 selected_role = st.sidebar.radio("Select Role Module", roles)
 
@@ -140,7 +140,7 @@ if uploaded_file:
         st.plotly_chart(fig, use_container_width=True)
 
     elif selected_role == "AI Business Advisor (Cohere)":
-        st.header("🤖 AI Advisor (with file understanding)")
+        st.header("🤖 AI Project Advisor (with file understanding)")
         cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("Enter Cohere API Key", type="password")
         question = st.text_area("Ask something about your uploaded data:")
 
