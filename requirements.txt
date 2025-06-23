@@ -8,3 +8,4 @@ openai
 cohere
 seaborn
 prophet
+fpdf
