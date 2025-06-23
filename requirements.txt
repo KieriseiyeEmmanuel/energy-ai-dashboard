@@ -6,3 +6,4 @@ openpyxl
 plotly
 openai
 cohere
+seaborn
