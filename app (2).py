@@ -23,7 +23,7 @@ roles = [
     "Market Intelligence (Oil Prices)",
     "Energy Economist (Policy Scenarios)",
     "Supply Chain Analyst (Logistics KPIs)",
-    "AI Business Advisor (Cohere)"
+    "Ask Vora"
 ]
 selected_role = st.sidebar.radio("Select Role Module", roles)
 
