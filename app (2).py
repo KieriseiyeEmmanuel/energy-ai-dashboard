@@ -13,23 +13,23 @@ from prophet import Prophet
 from prophet.plot import plot_plotly
 from fpdf import FPDF
 
-st.set_page_config(page_title="AI Energy Analyst Dashboard", layout="wide")
-st.title("🔬 AI Energy & Business Intelligence Dashboard")
+st.set_page_config(page_title="Vora – Chevron-Ready AI Energy Dashboard", layout="wide")
+st.title("🛢️ Vora – Chevron-Grade AI Energy Intelligence Dashboard")
 
 roles = [
-    "Financial Analyst (NPV/IRR/Payback)",
-    "Data Analyst (Trends & Correlations)",
-    "Market Intelligence (Oil Prices)",
-    "Energy Economist (Policy Scenarios)",
-    "Supply Chain Analyst (Logistics KPIs)",
-    "Ask Vora"
+    "Project Finance & Economics",
+    "Production & Operations Analyst",
+    "Market Intelligence",
+    "Energy Policy Scenarios",
+    "Supply Chain & Logistics",
+    "Ask Vora (AI Assistant)"
 ]
-selected_role = st.sidebar.radio("Select Role Module", roles)
+selected_role = st.sidebar.radio("Select Analyst Role", roles)
 
 uploaded_file = st.file_uploader("📥 Upload Excel file", type=["xlsx"])
 if uploaded_file:
     df = pd.read_excel(uploaded_file)
-    st.sidebar.success("File uploaded!")
+    st.sidebar.success("✅ File uploaded successfully!")
 
     def generate_pdf_report(title, summary):
         pdf = FPDF()
@@ -43,11 +43,28 @@ if uploaded_file:
         href = f'<a href="data:application/pdf;base64,{b64}" download="report.pdf">📄 Download PDF Report</a>'
         return href
 
-    if selected_role == "Financial Analyst (NPV/IRR/Payback)":
-        st.header("📈 Financial Evaluation")
-        expected_cols = {"Project", "Cash Flow (USD)"}
+    def ai_insight(prompt_text):
+        cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("Enter Cohere API Key", type="password")
+        if cohere_key:
+            try:
+                co = cohere.Client(cohere_key)
+                df_sample = df.head().to_string(index=False)
+                summary = df.describe(include='all').fillna('').to_string()
+                context = f"Data Sample:\n{df_sample}\n\nSummary:\n{summary}"
+                response = co.chat(
+                    message=f"{prompt_text}\n\n{context}",
+                    model="command-r-plus",
+                    temperature=0.4
+                )
+                st.success(response.text)
+            except Exception as e:
+                st.error(f"Cohere Error: {e}")
+
+    if selected_role == "Project Finance & Economics":
+        st.header("💰 Chevron-Style Project Financial Evaluation")
+        expected_cols = {"Project", "Year", "Cash Flow (USD)"}
         if not expected_cols.issubset(df.columns):
-            st.error("❌ File must contain: 'Project' and 'Cash Flow (USD)'")
+            st.error("❌ File must contain: Project, Year, Cash Flow (USD)")
         else:
             project = st.selectbox("Select Project", df["Project"].unique())
             rate = st.slider("Discount Rate (%)", 0.01, 0.3, 0.1)
@@ -63,109 +80,84 @@ if uploaded_file:
             col2.metric("IRR", f"{irr:.2%}" if irr else "N/A")
             col3.metric("Payback", f"{payback} years" if payback else "Beyond range")
 
-            st.subheader("Cash Flow Chart")
-            project_df["Year"] = list(range(1, len(project_df) + 1))
-            st.plotly_chart(px.bar(project_df, x="Year", y="Cash Flow (USD)"), use_container_width=True)
+            st.subheader("📊 Cash Flow Timeline")
+            st.plotly_chart(px.bar(project_df, x="Year", y="Cash Flow (USD)", color="Project"), use_container_width=True)
 
-            report_text = f"Project: {project}\n\nNPV: ${npv:,.2f}\nIRR: {irr:.2% if irr else 'N/A'}\nPayback: {payback if payback else 'Beyond range'} years"
-            st.markdown(generate_pdf_report("Financial Analyst Report", report_text), unsafe_allow_html=True)
+            st.markdown(generate_pdf_report("Finance Report", f"Project: {project}\nNPV: ${npv:,.2f}\nIRR: {irr:.2% if irr else 'N/A'}\nPayback: {payback} years"), unsafe_allow_html=True)
+            st.write("\n🔎 **AI Insights**")
+            ai_insight("You are a Chevron project finance analyst. Provide insights into the uploaded project finance data.")
 
-    elif selected_role == "Data Analyst (Trends & Correlations)":
-        st.header("📊 Data Trends & Correlation Analysis")
+    elif selected_role == "Production & Operations Analyst":
+        st.header("⛽ Production & Operational Dashboard")
         st.dataframe(df.head())
 
-        st.write("### Correlation Heatmap")
-        corr = df.select_dtypes(include=np.number).corr()
-        fig = go.Figure(data=go.Heatmap(
-            z=corr.values,
-            x=corr.columns,
-            y=corr.columns,
-            colorscale='Viridis'))
-        st.plotly_chart(fig, use_container_width=True)
+        if "Month" in df.columns and "Oil Production (bbl)" in df.columns:
+            st.line_chart(df.set_index("Month")["Oil Production (bbl)"])
 
-        st.write("### Trends Over Time")
-        numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
-        time_col = st.selectbox("Time Column", df.columns)
-        value_col = st.selectbox("Value Column", numeric_cols)
-        st.line_chart(df.set_index(time_col)[value_col])
+        if "Downtime (hrs)" in df.columns:
+            st.write("### Downtime Analysis")
+            st.bar_chart(df.set_index("Month")["Downtime (hrs)"])
 
-        st.write("### Forecast with Prophet")
-        if time_col and value_col:
-            prophet_df = df[[time_col, value_col]].rename(columns={time_col: 'ds', value_col: 'y'})
-            try:
-                m = Prophet()
-                m.fit(prophet_df)
-                future = m.make_future_dataframe(periods=12, freq='M')
-                forecast = m.predict(future)
-                fig = plot_plotly(m, forecast)
-                st.plotly_chart(fig, use_container_width=True)
-            except Exception as e:
-                st.warning(f"Forecasting Error: {e}")
+        if "Uptime (%)" in df.columns:
+            st.write("### Uptime Trends")
+            st.line_chart(df.set_index("Month")["Uptime (%)"])
 
-    elif selected_role == "Market Intelligence (Oil Prices)":
-        st.header("🌍 Oil Market Intelligence")
+        st.write("\n🔎 **AI Insights**")
+        ai_insight("As an operations analyst, evaluate production and uptime/downtime behavior in the dataset.")
+
+    elif selected_role == "Market Intelligence":
+        st.header("📈 Oil Market Monitoring")
         st.dataframe(df.head())
 
-        st.write("### Oil Price Trends")
-        fig = px.line(df, x="Date", y=["Brent Price (USD)", "WTI Price (USD)", "OPEC Basket (USD)"], title="Oil Price Indices")
-        st.plotly_chart(fig, use_container_width=True)
+        if "Date" in df.columns:
+            st.plotly_chart(px.line(df, x="Date", y=[col for col in df.columns if "Price" in col], title="Price Indexes"))
 
-        st.write("### Global Demand vs Supply")
-        fig2 = px.line(df, x="Date", y=["Global Demand (mb/d)", "Global Supply (mb/d)"], title="Global Oil Demand & Supply")
-        st.plotly_chart(fig2, use_container_width=True)
+        if "Global Demand (mb/d)" in df.columns and "Global Supply (mb/d)" in df.columns:
+            st.plotly_chart(px.line(df, x="Date", y=["Global Demand (mb/d)", "Global Supply (mb/d)"], title="Demand vs Supply"))
 
-    elif selected_role == "Energy Economist (Policy Scenarios)":
-        st.header("📉 Policy Scenario Analysis")
+        st.write("\n🔎 **AI Insights**")
+        ai_insight("As a market intelligence analyst, interpret the trends and economic implications from oil price and supply-demand data.")
+
+    elif selected_role == "Energy Policy Scenarios":
+        st.header("📘 Policy & Regulatory Forecasting")
         st.dataframe(df)
 
-        st.write("### Emissions vs GDP Growth")
-        fig = px.scatter(df, x="CO₂ Emissions (Mt)", y="Expected GDP Growth (%)", color="Scenario", size="Carbon Tax ($/ton)", hover_data=["Policy"])
-        st.plotly_chart(fig, use_container_width=True)
+        if "Scenario" in df.columns:
+            st.plotly_chart(px.bar(df, x="Scenario", y="CO₂ Emissions (Mt)", color="Policy", title="Emissions by Policy"))
+            st.plotly_chart(px.scatter(df, x="CO₂ Emissions (Mt)", y="GDP Growth (%)", color="Scenario", size="Carbon Tax ($/ton)", hover_data=["Policy"]))
 
-        st.write("### Scenario Comparison")
-        fig2 = px.bar(df, x="Scenario", y="CO₂ Emissions (Mt)", color="Policy", title="Emissions under Different Policies")
-        st.plotly_chart(fig2, use_container_width=True)
+        st.write("\n🔎 **AI Insights**")
+        ai_insight("You're an energy policy expert. Evaluate the impact of different carbon tax policies on emissions and GDP.")
 
-    elif selected_role == "Supply Chain Analyst (Logistics KPIs)":
-        st.header("🏭 Supply Chain & Logistics Analysis")
+    elif selected_role == "Supply Chain & Logistics":
+        st.header("🚢 Logistics & KPI Analysis")
         st.dataframe(df.head())
 
-        kpi_cols = ["Inventory Level (bbl)", "Transport Cost (USD)", "Lead Time (days)", "Uptime (%)", "Delivery Accuracy (%)"]
+        kpi_cols = [col for col in df.columns if col not in ["Month", "Site"] and df[col].dtype != 'O']
         for col in kpi_cols:
             st.line_chart(df.pivot(index="Month", columns="Site", values=col), use_container_width=True)
 
-        st.write("### KPI Distribution")
-        selected_kpi = st.selectbox("Select KPI to analyze", kpi_cols)
-        fig = px.box(df, x="Site", y=selected_kpi, title=f"{selected_kpi} Distribution by Site")
-        st.plotly_chart(fig, use_container_width=True)
+        selected_kpi = st.selectbox("Select KPI for Box Plot", kpi_cols)
+        st.plotly_chart(px.box(df, x="Site", y=selected_kpi, title=f"{selected_kpi} Distribution"))
 
-    elif selected_role == "Ask Vora":
-        st.header("🤖 Ask Vora - your AI Energy Advisor")
+        st.write("\n🔎 **AI Insights**")
+        ai_insight("As a Chevron logistics analyst, provide a logistics and supply chain KPI analysis.")
+
+    elif selected_role == "Ask Vora (AI Assistant)":
+        st.header("🧠 Ask Vora: File-Aware AI Assistant")
         cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("Enter Cohere API Key", type="password")
-        question = st.text_area("Ask something about your uploaded data:")
+        question = st.text_area("Ask Vora something about your uploaded file:")
 
-        if st.button("Ask AI") and cohere_key and question:
+        if st.button("Ask Vora") and cohere_key and question:
             try:
                 co = cohere.Client(cohere_key)
-                df_summary = df.describe(include='all').fillna('').to_string()
-                head = df.head(5).to_string(index=False)
-                context = f"Here is a preview of the uploaded dataset:\n\n{head}\n\nSummary Statistics:\n{df_summary}"
-                full_prompt = f"""
-You are Vora, a helpful business analyst AI. Use the uploaded dataset below to answer the user's question intelligently.
-
-DATA:
-{context}
-
-QUESTION:
-{question}
-"""
-                response = co.chat(
-                    message=full_prompt,
-                    model="command-r-plus",
-                    temperature=0.5
-                )
+                df_sample = df.head().to_string(index=False)
+                summary = df.describe(include='all').fillna('').to_string()
+                context = f"Here is a preview of the uploaded dataset:\n\n{df_sample}\n\nSummary:\n{summary}"
+                prompt = f"You are a Chevron-level data advisor. Based on this data, answer the user's question intelligently.\n\n{context}\n\nQuestion: {question}"
+                response = co.chat(message=prompt, model="command-r-plus", temperature=0.5)
                 st.success(response.text)
             except Exception as e:
                 st.error(f"Cohere Error: {e}")
 else:
-    st.info("Select a role and upload a file to begin.")
+    st.info("👈 Select a role and upload your Chevron-style Excel file to begin.")
