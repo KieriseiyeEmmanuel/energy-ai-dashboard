@@ -32,16 +32,18 @@ if uploaded_file:
     st.sidebar.success("✅ File uploaded successfully!")
 
     def generate_pdf_report(title, summary):
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
-        pdf.cell(200, 10, txt=title, ln=True, align='C')
-        pdf.multi_cell(0, 10, txt=summary)
-        buffer = io.BytesIO()
-        pdf.output(buffer)
-        b64 = base64.b64encode(buffer.getvalue()).decode()
-        href = f'<a href="data:application/pdf;base64,{b64}" download="report.pdf">📄 Download PDF Report</a>'
-        return href
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt=title, ln=True, align='C')
+    pdf.multi_cell(0, 10, txt=summary)
+
+    # ✅ Return PDF as bytes using `dest='S'`
+    pdf_bytes = pdf.output(dest='S').encode('latin1')  # required encoding
+    b64 = base64.b64encode(pdf_bytes).decode()
+    href = f'<a href="data:application/pdf;base64,{b64}" download="report.pdf">📄 Download Finance Report</a>'
+    return href
+
 
     def ai_insight(prompt_text):
         cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("Enter Cohere API Key", type="password")
