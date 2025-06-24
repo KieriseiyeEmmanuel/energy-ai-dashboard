@@ -14,7 +14,7 @@ from prophet.plot import plot_plotly
 from fpdf import FPDF
 
 st.set_page_config(page_title="Vora – Chevron-Ready AI Energy Dashboard", layout="wide")
-st.title("🛢️ Vora – Chevron-Grade AI Energy Intelligence Dashboard")
+st.title("🗂️ Vora – Chevron-Grade AI Energy Intelligence Dashboard")
 
 roles = [
     "Project Finance & Economics",
@@ -26,7 +26,7 @@ roles = [
 ]
 selected_role = st.sidebar.radio("Select Analyst Role", roles)
 
-uploaded_file = st.file_uploader("📥 Upload Excel file", type=["xlsx"])
+uploaded_file = st.file_uploader("📅 Upload Excel file", type=["xlsx"])
 if uploaded_file:
     df = pd.read_excel(uploaded_file)
     st.sidebar.success("✅ File uploaded successfully!")
@@ -75,15 +75,18 @@ if uploaded_file:
             cumulative = np.cumsum(cash_flows)
             payback = next((i for i, v in enumerate(cumulative) if v >= 0), None)
 
+            irr_str = f"{irr:.2%}" if irr else "N/A"
+            payback_str = f"{payback} years" if payback is not None else "Beyond range"
+
             col1, col2, col3 = st.columns(3)
             col1.metric("NPV", f"${npv:,.2f}")
-            col2.metric("IRR", f"{irr:.2%}" if irr else "N/A")
-            col3.metric("Payback", f"{payback} years" if payback else "Beyond range")
+            col2.metric("IRR", irr_str)
+            col3.metric("Payback", payback_str)
 
             st.subheader("📊 Cash Flow Timeline")
             st.plotly_chart(px.bar(project_df, x="Year", y="Cash Flow (USD)", color="Project"), use_container_width=True)
 
-            st.markdown(generate_pdf_report("Finance Report", f"Project: {project}\nNPV: ${npv:,.2f}\nIRR: {irr:.2% if irr else 'N/A'}\nPayback: {payback} years"), unsafe_allow_html=True)
+            st.markdown(generate_pdf_report("Finance Report", f"Project: {project}\nNPV: ${npv:,.2f}\nIRR: {irr_str}\nPayback: {payback_str}"), unsafe_allow_html=True)
             st.write("\n🔎 **AI Insights**")
             ai_insight("You are a Chevron project finance analyst. Provide insights into the uploaded project finance data.")
 
@@ -144,7 +147,7 @@ if uploaded_file:
         ai_insight("As a Chevron logistics analyst, provide a logistics and supply chain KPI analysis.")
 
     elif selected_role == "Ask Vora (AI Assistant)":
-        st.header("🧠 Ask Vora: File-Aware AI Assistant")
+        st.header("🧐 Ask Vora: File-Aware AI Assistant")
         cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("Enter Cohere API Key", type="password")
         question = st.text_area("Ask Vora something about your uploaded file:")
 
