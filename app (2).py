@@ -69,26 +69,32 @@ if uploaded_file:
             project = st.selectbox("Select Project", df["Project"].unique())
             rate = st.slider("Discount Rate (%)", 0.01, 0.3, 0.1)
             project_df = df[df["Project"] == project]
-            cash_flows = project_df["Cash Flow (USD)"].tolist()
-            npv = sum(cf / (1 + rate)**i for i, cf in enumerate(cash_flows))
-            irr = npf.irr(cash_flows)
-            cumulative = np.cumsum(cash_flows)
-            payback = next((i for i, v in enumerate(cumulative) if v >= 0), None)
+            cash_flows = project_df["Cash Flow (USD)"].dropna().tolist()
 
-            irr_str = f"{irr:.2%}" if irr else "N/A"
-            payback_str = f"{payback} years" if payback is not None else "Beyond range"
+            if not cash_flows:
+                st.warning("⚠️ No valid cash flows available for this project.")
+            else:
+                npv = sum(cf / (1 + rate)**i for i, cf in enumerate(cash_flows))
+                try:
+                    irr = npf.irr(cash_flows)
+                    irr_str = f"{irr:.2%}" if np.isfinite(irr) else "N/A"
+                except:
+                    irr_str = "N/A"
+                cumulative = np.cumsum(cash_flows)
+                payback = next((i for i, v in enumerate(cumulative) if v >= 0), None)
+                payback_str = f"{payback} years" if payback is not None else "Beyond range"
 
-            col1, col2, col3 = st.columns(3)
-            col1.metric("NPV", f"${npv:,.2f}")
-            col2.metric("IRR", irr_str)
-            col3.metric("Payback", payback_str)
+                col1, col2, col3 = st.columns(3)
+                col1.metric("NPV", f"${npv:,.2f}")
+                col2.metric("IRR", irr_str)
+                col3.metric("Payback", payback_str)
 
-            st.subheader("📊 Cash Flow Timeline")
-            st.plotly_chart(px.bar(project_df, x="Year", y="Cash Flow (USD)", color="Project"), use_container_width=True)
+                st.subheader("📊 Cash Flow Timeline")
+                st.plotly_chart(px.bar(project_df, x="Year", y="Cash Flow (USD)", color="Project"), use_container_width=True)
 
-            st.markdown(generate_pdf_report("Finance Report", f"Project: {project}\nNPV: ${npv:,.2f}\nIRR: {irr_str}\nPayback: {payback_str}"), unsafe_allow_html=True)
-            st.write("\n🔎 **AI Insights**")
-            ai_insight("You are a Chevron project finance analyst. Provide insights into the uploaded project finance data.")
+                st.markdown(generate_pdf_report("Finance Report", f"Project: {project}\nNPV: ${npv:,.2f}\nIRR: {irr_str}\nPayback: {payback_str}"), unsafe_allow_html=True)
+                st.write("\n🔎 **AI Insights**")
+                ai_insight("You are a Chevron project finance analyst. Provide insights into the uploaded project finance data.")
 
     elif selected_role == "Production & Operations Analyst":
         st.header("⛽ Production & Operational Dashboard")
