@@ -106,41 +106,38 @@ if uploaded_file:
             except Exception as e:
                 st.error(f"Cohere Error: {e}")
 
+    # 📊 Project Finance & Economics
     if selected_role == "📊 Project Finance & Economics":
-        st.subheader("📊 Project Financial Evaluation")
-        required_cols = ["Project", "Year", "Cash Flow (USD)"]
-        if all(col in df.columns for col in required_cols):
-            projects = df["Project"].unique()
-            project = st.selectbox("Select Project", projects)
+        st.header("📊 Project Finance & Economics")
+        if 'Project' in df.columns and 'Cash Flow (USD)' in df.columns:
+            project = st.selectbox("Select Project", df["Project"].unique())
+            rate = st.slider("Discount Rate (%)", 0.01, 0.3, 0.1)
             project_df = df[df["Project"] == project]
-            cash = project_df["Cash Flow (USD)"].tolist()
-            rate = st.slider("Discount Rate", 0.01, 0.3, 0.1)
-            npv = sum(cf / (1 + rate)**i for i, cf in enumerate(cash))
-            irr = npf.irr(cash)
-            cumulative = np.cumsum(cash)
-            payback = next((i for i, val in enumerate(cumulative) if val >= 0), None)
-
-            irr_str = f"{irr:.2%}" if irr else "N/A"
-            payback_str = f"{payback} years" if payback else "Beyond Range"
+            cash_flows = project_df["Cash Flow (USD)"].tolist()
+            npv = sum(cf / (1 + rate)**i for i, cf in enumerate(cash_flows))
+            irr = npf.irr(cash_flows)
+            cumulative = np.cumsum(cash_flows)
+            payback = next((i for i, v in enumerate(cumulative) if v >= 0), None)
 
             col1, col2, col3 = st.columns(3)
             col1.metric("NPV", f"${npv:,.2f}")
-            col2.metric("IRR", irr_str)
-            col3.metric("Payback Period", payback_str)
+            col2.metric("IRR", f"{irr:.2%}" if irr else "N/A")
+            col3.metric("Payback", f"{payback} years" if payback else "Beyond range")
 
             st.subheader("📊 Cash Flow Timeline")
-            st.plotly_chart(px.bar(project_df, x="Year", y="Cash Flow (USD)", title="Cash Flow by Year"))
-
-            st.markdown(generate_pdf_report("Finance Report", f"Project: {project}\nNPV: ${npv:,.2f}\nIRR: {irr_str}\nPayback: {payback_str}"), unsafe_allow_html=True)
-            st.markdown("\n🔍 **AI Insight on Project Finance**")
-            ai_insight("Give financial insights based on the uploaded Chevron project cash flows.")
+            project_df["Year"] = list(range(1, len(project_df) + 1))
+            st.plotly_chart(px.bar(project_df, x="Year", y="Cash Flow (USD)"), use_container_width=True)
+            st.markdown("\n🔍 **AI Insight for Financial Analyst Role**")
+            ai_insight("You are a financial analyst evaluating project cash flows. Provide interpretation of NPV, IRR, and payback period trends.")
         else:
-            st.warning(f"❗ Missing columns. Please ensure your file includes: {', '.join(required_cols)}")
+            st.warning("🚫 Required columns not found: 'Project', 'Cash Flow (USD)'")
 
+    # 🤖 Ask Vora (AI Assistant)
     elif selected_role == "🤖 Ask Vora (AI Assistant)":
-        st.subheader("🤖 Ask Vora – Your Chevron AI Advisor")
-        ai_insight("Give general data insights and recommendations based on the uploaded Chevron dataset.")
+        st.header("🤖 Ask Vora – AI Assistant")
+        ai_insight("You're an energy analyst assistant. Help answer any questions about the uploaded data.")
 
+    # 📈 Forecasting (Prophet/ARIMA)
     elif selected_role == "📈 Forecasting (Prophet/ARIMA)":
         st.header("📈 Forecasting with Prophet")
         if "Date" in df.columns:
