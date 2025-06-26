@@ -13,7 +13,6 @@ from prophet import Prophet
 from prophet.plot import plot_plotly
 from fpdf import FPDF
 from datetime import datetime
-from statsmodels.tsa.arima.model import ARIMA
 
 # 🌌 Set Sci-Fi theme & layout
 st.set_page_config(
@@ -107,8 +106,43 @@ if uploaded_file:
             except Exception as e:
                 st.error(f"Cohere Error: {e}")
 
-    if selected_role == "📈 Forecasting (Prophet/ARIMA)":
-        st.header("📈 Forecasting with Prophet & ARIMA")
+    if selected_role == "📊 Project Finance & Economics":
+        st.subheader("📊 Project Financial Evaluation")
+        required_cols = ["Project", "Year", "Cash Flow (USD)"]
+        if all(col in df.columns for col in required_cols):
+            projects = df["Project"].unique()
+            project = st.selectbox("Select Project", projects)
+            project_df = df[df["Project"] == project]
+            cash = project_df["Cash Flow (USD)"].tolist()
+            rate = st.slider("Discount Rate", 0.01, 0.3, 0.1)
+            npv = sum(cf / (1 + rate)**i for i, cf in enumerate(cash))
+            irr = npf.irr(cash)
+            cumulative = np.cumsum(cash)
+            payback = next((i for i, val in enumerate(cumulative) if val >= 0), None)
+
+            irr_str = f"{irr:.2%}" if irr else "N/A"
+            payback_str = f"{payback} years" if payback else "Beyond Range"
+
+            col1, col2, col3 = st.columns(3)
+            col1.metric("NPV", f"${npv:,.2f}")
+            col2.metric("IRR", irr_str)
+            col3.metric("Payback Period", payback_str)
+
+            st.subheader("📊 Cash Flow Timeline")
+            st.plotly_chart(px.bar(project_df, x="Year", y="Cash Flow (USD)", title="Cash Flow by Year"))
+
+            st.markdown(generate_pdf_report("Finance Report", f"Project: {project}\nNPV: ${npv:,.2f}\nIRR: {irr_str}\nPayback: {payback_str}"), unsafe_allow_html=True)
+            st.markdown("\n🔍 **AI Insight on Project Finance**")
+            ai_insight("Give financial insights based on the uploaded Chevron project cash flows.")
+        else:
+            st.warning(f"❗ Missing columns. Please ensure your file includes: {', '.join(required_cols)}")
+
+    elif selected_role == "🤖 Ask Vora (AI Assistant)":
+        st.subheader("🤖 Ask Vora – Your Chevron AI Advisor")
+        ai_insight("Give general data insights and recommendations based on the uploaded Chevron dataset.")
+
+    elif selected_role == "📈 Forecasting (Prophet/ARIMA)":
+        st.header("📈 Forecasting with Prophet")
         if "Date" in df.columns:
             time_col = st.selectbox("Select Time Column", options=[col for col in df.columns if "date" in col.lower() or "Date" in col])
             value_col = st.selectbox("Select Value Column", options=[col for col in df.columns if df[col].dtype in ['float64', 'int64']])
@@ -117,38 +151,18 @@ if uploaded_file:
             df_forecast.columns = ['ds', 'y']
             df_forecast['ds'] = pd.to_datetime(df_forecast['ds'])
 
-            st.subheader("🔮 Prophet Forecast")
             m = Prophet()
             m.fit(df_forecast)
             future = m.make_future_dataframe(periods=12, freq='M')
             forecast = m.predict(future)
 
             st.plotly_chart(plot_plotly(m, forecast), use_container_width=True)
+            st.subheader("Forecasted Data")
             st.dataframe(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(12))
-
-            st.subheader("🧠 AI Insight on Prophet")
+            st.markdown("\n🔍 **AI Insights on Forecasting**")
             ai_insight("You are forecasting future values using Prophet. Explain the trends and what the forecast shows.")
-
-            st.subheader("📉 ARIMA Forecast")
-            df_arima = df_forecast.set_index('ds')
-            try:
-                arima_model = ARIMA(df_arima['y'], order=(1, 1, 1))
-                arima_result = arima_model.fit()
-                forecast_arima = arima_result.forecast(steps=12)
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(x=df_arima.index, y=df_arima['y'], name='Observed'))
-                future_dates = pd.date_range(start=df_arima.index[-1], periods=12, freq='M')
-                fig.add_trace(go.Scatter(x=future_dates, y=forecast_arima, name='ARIMA Forecast'))
-                st.plotly_chart(fig, use_container_width=True)
-            except Exception as e:
-                st.error(f"ARIMA Error: {e}")
-
-            st.subheader("🧠 AI Insight on ARIMA")
-            ai_insight("You are forecasting using ARIMA. Explain the trend and performance.")
         else:
             st.warning("❗ Your file must include a 'Date' column for forecasting.")
-
-    # Other role logic here (not shown for brevity)...
 
 else:
     st.info("👈 Select a role and upload your Chevron-style Excel file to begin.")
