@@ -9,3 +9,4 @@ cohere
 seaborn
 prophet
 fpdf
+statsmodels
