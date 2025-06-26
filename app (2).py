@@ -106,7 +106,6 @@ if uploaded_file:
             except Exception as e:
                 st.error(f"Cohere Error: {e}")
 
-    # 📊 Project Finance & Economics
     if selected_role == "📊 Project Finance & Economics":
         st.header("📊 Project Finance & Economics")
         if 'Project' in df.columns and 'Cash Flow (USD)' in df.columns:
@@ -132,12 +131,53 @@ if uploaded_file:
         else:
             st.warning("🚫 Required columns not found: 'Project', 'Cash Flow (USD)'")
 
-    # 🤖 Ask Vora (AI Assistant)
-    elif selected_role == "🤖 Ask Vora (AI Assistant)":
-        st.header("🤖 Ask Vora – AI Assistant")
-        ai_insight("You're an energy analyst assistant. Help answer any questions about the uploaded data.")
+    elif selected_role == "⚙️ Production & Operations Analyst":
+        st.header("⚙️ Production & Operations Analyst")
+        if {'Well', 'Daily Output', 'Uptime (%)', 'Pressure (PSI)'}.issubset(df.columns):
+            st.dataframe(df)
+            st.plotly_chart(px.line(df, x='Well', y='Daily Output', color='Well', title='Daily Production Output'))
+            st.subheader("🛠️ KPI Overview")
+            st.metric("Avg Output", f"{df['Daily Output'].mean():,.2f} bbl/day")
+            st.metric("Avg Uptime", f"{df['Uptime (%)'].mean():.2f}%")
+            st.metric("Avg Pressure", f"{df['Pressure (PSI)'].mean():,.0f} PSI")
+            st.markdown("\n🔍 **AI Insight for Operations**")
+            ai_insight("You are an upstream operations analyst. Identify bottlenecks and optimize field operations.")
+        else:
+            st.warning("⚠️ Missing required columns: 'Well', 'Daily Output', 'Uptime (%)', 'Pressure (PSI)'")
 
-    # 📈 Forecasting (Prophet/ARIMA)
+    elif selected_role == "🌍 Market Intelligence":
+        st.header("🌍 Market Intelligence")
+        if {'Date', 'Brent Price', 'WTI Price', 'Demand (MBPD)', 'Supply (MBPD)'}.issubset(df.columns):
+            df['Date'] = pd.to_datetime(df['Date'])
+            st.line_chart(df.set_index('Date')[['Brent Price', 'WTI Price']])
+            st.area_chart(df.set_index('Date')[['Demand (MBPD)', 'Supply (MBPD)']])
+            st.markdown("\n🔍 **AI Market Intelligence Insight**")
+            ai_insight("You are a global market analyst. Analyze price and demand-supply dynamics.")
+        else:
+            st.warning("⚠️ File must contain 'Date', 'Brent Price', 'WTI Price', 'Demand (MBPD)', 'Supply (MBPD)'")
+
+    elif selected_role == "📘 Energy Policy Scenarios":
+        st.header("📘 Energy Policy Scenarios")
+        if {'Scenario', 'CO2 Emissions', 'Tax Rate', 'Renewable Share (%)'}.issubset(df.columns):
+            st.bar_chart(df.set_index('Scenario')[['CO2 Emissions', 'Tax Rate']])
+            st.plotly_chart(px.pie(df, values='Renewable Share (%)', names='Scenario', title='Renewables by Scenario'))
+            st.markdown("\n🔍 **AI Energy Policy Insight**")
+            ai_insight("You are an energy economist. Compare policy scenarios and their impacts.")
+        else:
+            st.warning("⚠️ File must include 'Scenario', 'CO2 Emissions', 'Tax Rate', 'Renewable Share (%)'")
+
+    elif selected_role == "🚚 Supply Chain & Logistics":
+        st.header("🚚 Supply Chain & Logistics")
+        if {'Route', 'Delivery Time (days)', 'Cost per Barrel', 'Delays (#)'} .issubset(df.columns):
+            st.dataframe(df)
+            st.plotly_chart(px.box(df, x='Route', y='Delivery Time (days)', title='Delivery Times by Route'))
+            st.metric("Avg Cost/Barrel", f"${df['Cost per Barrel'].mean():.2f}")
+            st.metric("Avg Delay Count", f"{df['Delays (#)'].mean():.2f}")
+            st.markdown("\n🔍 **AI Supply Chain Insight**")
+            ai_insight("You are a logistics analyst. Evaluate delays and route performance.")
+        else:
+            st.warning("⚠️ File must contain 'Route', 'Delivery Time (days)', 'Cost per Barrel', 'Delays (#)'")
+
     elif selected_role == "📈 Forecasting (Prophet/ARIMA)":
         st.header("📈 Forecasting with Prophet")
         if "Date" in df.columns:
@@ -160,6 +200,10 @@ if uploaded_file:
             ai_insight("You are forecasting future values using Prophet. Explain the trends and what the forecast shows.")
         else:
             st.warning("❗ Your file must include a 'Date' column for forecasting.")
+
+    elif selected_role == "🤖 Ask Vora (AI Assistant)":
+        st.header("🤖 Ask Vora – AI Assistant")
+        ai_insight("You're an energy analyst assistant. Help answer any questions about the uploaded data.")
 
 else:
     st.info("👈 Select a role and upload your Chevron-style Excel file to begin.")
