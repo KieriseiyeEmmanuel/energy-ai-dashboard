@@ -16,17 +16,21 @@ st.markdown("AI-Powered Chevron-Grade Analysis Dashboard")
 uploaded_file = st.file_uploader("📥 Upload Chevron-style Excel file", type=["xlsx"])
 
 # Utility Functions
-def generate_pdf_report(title, content):
+def generate_pdf_report(title, summary):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
+    pdf.set_text_color(33, 37, 41)
+    pdf.set_fill_color(240, 248, 255)
     pdf.cell(200, 10, txt=title, ln=True, align='C')
-    pdf.multi_cell(0, 10, txt=content)
-    buffer = io.BytesIO()
-    pdf.output(buffer)
-    buffer.seek(0)
-    b64 = base64.b64encode(buffer.read()).decode()
-    return f'<a href="data:application/pdf;base64,{b64}" download="Vora_Report.pdf">📄 Download PDF Report</a>'
+    pdf.ln(10)
+    pdf.multi_cell(0, 10, txt=summary)
+
+    # ✅ Return as download link using base64
+    pdf_output = pdf.output(dest='S').encode('latin1')
+    b64 = base64.b64encode(pdf_output).decode()
+    href = f'<a href="data:application/pdf;base64,{b64}" download="vora_report.pdf">📄 Download PDF Report</a>'
+    return href
 
 def ai_insight(prompt_text, df, api_key):
     try:
