@@ -3,19 +3,19 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import cohere
-import io
-import base64
 from prophet import Prophet
+from prophet.plot import plot_plotly
 from fpdf import FPDF
+import base64
+from io import BytesIO
 
-st.set_page_config(page_title="🛸 Vora – Chevron AI Analyst", layout="wide")
+st.set_page_config(page_title="🛸 Vora AI Analyst", layout="wide")
 
-st.title("🛸 Vora – Chevron AI Analyst")
-st.markdown("AI-Powered Chevron-Grade Analysis Dashboard")
+st.title("🛸 Vora – Chevron-Grade AI Analyst")
+st.markdown("Upload Chevron-style data and let Vora automatically generate visual insights, KPIs, forecasting, and reports.")
 
-uploaded_file = st.file_uploader("📥 Upload Chevron-style Excel file", type=["xlsx"])
+uploaded_file = st.file_uploader("📥 Upload Excel file", type=["xlsx"])
 
-# Utility Functions
 def generate_pdf_report(title, summary):
     pdf = FPDF()
     pdf.add_page()
@@ -26,101 +26,95 @@ def generate_pdf_report(title, summary):
     pdf.ln(10)
     pdf.multi_cell(0, 10, txt=summary)
 
-    # ✅ Return as download link using base64
-    pdf_output = pdf.output(dest='S').encode('latin1')
-    b64 = base64.b64encode(pdf_output).decode()
-    href = f'<a href="data:application/pdf;base64,{b64}" download="vora_report.pdf">📄 Download PDF Report</a>'
+    # Convert to base64 download link
+    pdf_bytes = pdf.output(dest='S').encode('latin1')
+    b64 = base64.b64encode(pdf_bytes).decode()
+    href = f'<a href="data:application/pdf;base64,{b64}" download="vora_report.pdf">📄 Download Vora PDF Report</a>'
     return href
 
-def ai_insight(prompt_text, df, api_key):
-    try:
-        co = cohere.Client(api_key)
-        preview = df.head(10).to_string(index=False)
-        context = f"{prompt_text}\n\nData Preview:\n{preview}"
-        response = co.chat(message=context, model="command-r-plus", temperature=0.5)
-        return response.text
-    except Exception as e:
-        return f"AI Error: {e}"
-
-def plot_auto_charts(df):
-    numeric_cols = df.select_dtypes(include=[np.number]).columns
-    if len(numeric_cols) >= 2:
-        st.subheader("📊 Auto-Generated Visualizations")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.plotly_chart(px.bar(df, x=numeric_cols[0], y=numeric_cols[1], title="Bar Chart"))
-        with col2:
-            st.plotly_chart(px.scatter(df, x=numeric_cols[0], y=numeric_cols[1], title="Scatter Plot"))
-        st.plotly_chart(px.line(df[numeric_cols], title="Line Trends Over Time"))
-
-def detect_anomalies(df):
-    st.subheader("🚨 Anomaly Detection")
-    for col in df.select_dtypes(include=np.number).columns:
-        outliers = df[(df[col] - df[col].mean()).abs() > 2 * df[col].std()]
-        if not outliers.empty:
-            st.warning(f"Anomalies detected in '{col}':")
-            st.dataframe(outliers)
-
-def forecast_time_series(df):
-    time_cols = [col for col in df.columns if 'date' in col.lower()]
-    val_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    if time_cols and val_cols:
-        st.subheader("📈 Forecasting with Prophet")
-        time_col = time_cols[0]
-        val_col = st.selectbox("Select Value to Forecast", val_cols)
-        data = df[[time_col, val_col]].dropna()
-        data.columns = ['ds', 'y']
-        data['ds'] = pd.to_datetime(data['ds'])
-        m = Prophet()
-        m.fit(data)
-        future = m.make_future_dataframe(periods=6, freq='M')
-        forecast = m.predict(future)
-        fig = px.line(forecast, x='ds', y='yhat', title="Forecast")
-        st.plotly_chart(fig)
-        st.dataframe(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(6))
-
 if uploaded_file:
-    df = pd.read_excel(uploaded_file, sheet_name=None)
-    sheet_names = list(df.keys())
+    df = pd.read_excel(uploaded_file)
+    st.sidebar.success("✅ File uploaded successfully!")
 
-    st.sidebar.success("✅ File uploaded.")
-    selected_sheet = st.sidebar.selectbox("Select Sheet", sheet_names)
-    df_selected = df[selected_sheet]
-    st.subheader(f"📄 Sheet: {selected_sheet}")
-    st.dataframe(df_selected.head())
+    cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("🔑 Enter Cohere API Key", type="password")
 
-    cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("Enter Cohere API Key", type="password")
-
+    # AI-Based Data Summary
     if cohere_key:
-        role_response = ai_insight("What Chevron department or role is most relevant for this dataset?", df_selected, cohere_key)
-        st.markdown("### 🧠 AI Role Detection")
-        st.success(role_response)
+        try:
+            co = cohere.Client(cohere_key)
+            st.subheader("🧠 AI Auto Summary & Insights")
+            preview = df.head(5).to_string(index=False)
+            description = df.describe(include='all').fillna('').to_string()
+            context = f"Data Preview:\n{preview}\n\nSummary:\n{description}"
+            kpi_response = co.chat(
+                message=f"You are a Chevron analyst. Based on the data below, identify roles, KPIs, insights, charts, and give an executive summary:\n\n{context}",
+                model="command-r-plus",
+                temperature=0.5
+            ).text
+            st.success(kpi_response)
 
-        kpi_response = ai_insight("Extract KPIs and business insights from this data. Format nicely.", df_selected, cohere_key)
-        st.markdown("### 📈 AI KPI Insights")
-        st.info(kpi_response)
+            # PDF Report
+            report_html = generate_pdf_report("Vora Chevron Summary", kpi_response)
+            st.markdown(report_html, unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"AI Error: {e}")
 
-        viz_response = ai_insight("Suggest 2-3 visualizations for this data.", df_selected, cohere_key)
-        st.markdown("### 📊 AI Visualization Recommendations")
-        st.info(viz_response)
+    # Dataframe preview
+    st.markdown("### 📋 Raw Data")
+    st.dataframe(df)
 
-        st.markdown("### 📉 Auto Charts")
-        plot_auto_charts(df_selected)
+    # 📊 KPIs for numeric columns
+    st.markdown("### 📈 Auto KPIs")
+    num_cols = df.select_dtypes(include=np.number).columns.tolist()
+    if num_cols:
+        kpi_cols = st.columns(min(3, len(num_cols)))
+        for i, col in enumerate(num_cols[:3]):
+            kpi_cols[i].metric(col, f"{df[col].mean():,.2f}")
+    
+    # 📉 Chart Selector
+    st.markdown("### 📊 Chart Visualizer")
+    chart_type = st.selectbox("Select Chart Type", ["Line Chart", "Bar Chart", "Scatter Plot"])
+    x_axis = st.selectbox("Select X-axis", options=df.columns)
+    y_axis = st.selectbox("Select Y-axis", options=num_cols)
 
-        st.markdown("### 🔍 Anomaly Insights")
-        detect_anomalies(df_selected)
+    if chart_type == "Line Chart":
+        st.plotly_chart(px.line(df, x=x_axis, y=y_axis, title=f"{y_axis} over {x_axis}"))
+    elif chart_type == "Bar Chart":
+        st.plotly_chart(px.bar(df, x=x_axis, y=y_axis, title=f"{y_axis} by {x_axis}"))
+    elif chart_type == "Scatter Plot":
+        st.plotly_chart(px.scatter(df, x=x_axis, y=y_axis, title=f"{y_axis} vs {x_axis}"))
 
-        st.markdown("### 🧪 Forecasting")
-        forecast_time_series(df_selected)
+    # 🧪 Forecasting
+    st.markdown("### 🧪 Forecasting")
+    if "Date" in df.columns or any("date" in c.lower() for c in df.columns):
+        date_col = st.selectbox("Select Time Column", options=[col for col in df.columns if "date" in col.lower()])
+        target_col = st.selectbox("Select Target Column to Forecast", options=num_cols)
 
-        st.markdown("### 📄 Smart Report Export")
-        report = generate_pdf_report("Vora Chevron Summary", kpi_response)
-        st.markdown(report, unsafe_allow_html=True)
+        df_forecast = df[[date_col, target_col]].dropna()
+        df_forecast.columns = ['ds', 'y']
+        df_forecast['ds'] = pd.to_datetime(df_forecast['ds'])
 
-        st.markdown("### 🤖 Ask Vora")
-        query = st.text_area("Ask anything about your dataset")
-        if st.button("Submit"):
-            custom_response = ai_insight(query, df_selected, cohere_key)
-            st.success(custom_response)
+        m = Prophet()
+        m.fit(df_forecast)
+        future = m.make_future_dataframe(periods=12, freq='M')
+        forecast = m.predict(future)
+
+        st.plotly_chart(plot_plotly(m, forecast))
+        st.dataframe(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(12))
+    else:
+        st.warning("No suitable date column found for forecasting.")
+
+    # 🤖 Ask Anything
+    st.markdown("### 🤖 Ask Vora Anything")
+    question = st.text_area("Ask a question or command (e.g. 'Summarize this', 'Show production trend')")
+    if st.button("Ask Vora") and cohere_key and question:
+        try:
+            sample_csv = df.head(10).to_csv(index=False)
+            ask_prompt = f"You are a Chevron analyst. Given this sample data:\n{sample_csv}\n\nAnswer: {question}"
+            ask_response = co.chat(message=ask_prompt, model="command-r-plus").text
+            st.success(ask_response)
+        except Exception as e:
+            st.error(f"Vora AI Error: {e}")
 else:
     st.info("👈 Upload a Chevron-style Excel file to begin.")
+
