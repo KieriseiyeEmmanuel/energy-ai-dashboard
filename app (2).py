@@ -1,114 +1,136 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import numpy_financial as npf
 import plotly.express as px
-import cohere
-import seaborn as sns
-import matplotlib.pyplot as plt
-from io import BytesIO
-from fpdf import FPDF
 from prophet import Prophet
-from prophet.plot import plot_plotly
+from fpdf import FPDF
+import cohere
+import io
+import base64
 
-# ----- CONFIG -----
+# 🎨 Page setup
 st.set_page_config(page_title="🛸 Vora – Chevron AI Analyst", layout="wide")
 
-# ----- STYLING -----
+# 🌌 Sci-fi theme styling
 st.markdown("""
     <style>
-    body, .main {
+    .main, .stApp {
         background-color: #0d1117;
         color: #c9d1d9;
         font-family: 'Orbitron', sans-serif;
     }
-    .stApp {
-        background: linear-gradient(135deg, #0d1117 0%, #111b26 100%);
-    }
     .stTextInput > div > div > input, .stTextArea > div > textarea {
         background-color: #161b22;
         color: #c9d1d9;
+        border: 1px solid #30363d;
+        border-radius: 10px;
     }
     .stButton > button {
         background-color: #58a6ff;
         color: black;
-        border-radius: 8px;
+        border-radius: 1rem;
+        font-weight: bold;
     }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🛸 Vora – Chevron-Grade AI Analyst")
+st.title("🛸 Vora – Chevron-Grade AI Energy Dashboard")
+st.markdown("### 👁️ Chevron’s Vision of AI-Augmented Business Intelligence")
 
-# ----- FILE UPLOAD -----
-uploaded_file = st.file_uploader("📥 Upload your Chevron-style Excel file", type=["xlsx"])
-cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("Enter Cohere API Key", type="password")
+# 📤 Upload
+uploaded_file = st.file_uploader("📥 Upload Chevron Excel File", type=["xlsx"])
 
+# 🧠 API Key
+cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("🔑 Enter Cohere API Key", type="password")
+
+# 🔍 PDF Report Export
+def generate_pdf_report(title, summary):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.set_text_color(33, 37, 41)
+    pdf.cell(200, 10, txt=title, ln=True, align='C')
+    pdf.ln(10)
+    pdf.multi_cell(0, 10, txt=summary)
+    buffer = io.BytesIO()
+    pdf.output(buffer, 'F')
+    buffer.seek(0)
+    b64 = base64.b64encode(buffer.read()).decode()
+    return f'<a href="data:application/pdf;base64,{b64}" download="vora_report.pdf">📄 Download PDF Report</a>'
+
+# 🧠 Smart Assistant + Auto Detection
 if uploaded_file:
     df = pd.read_excel(uploaded_file)
-    st.success("✅ File uploaded successfully")
+    st.sidebar.success("✅ File uploaded successfully!")
 
-    st.subheader("🔍 AI Role Identification & Insights")
-    if cohere_key:
+    st.subheader("🧬 AI Role Detection & Insights")
+    preview = df.head(5).to_string(index=False)
+    describe = df.describe(include='all').fillna('').to_string()
+
+    try:
+        co = cohere.Client(cohere_key)
+        detect_response = co.chat(
+            message=f"Given this Chevron dataset preview:\n\n{preview}\n\n{describe}\n\nWhat type of business role best fits this data (e.g. finance, operations, supply chain, etc)? What KPIs and visualizations would be useful?",
+            model="command-r-plus",
+            temperature=0.5
+        )
+        st.success(detect_response.text)
+
+        st.markdown("### 📌 Detected Role Suggestions and KPIs")
+        kpi_response = co.chat(
+            message=f"Summarize 3 key KPIs from this data:\n\n{preview}\n\n{describe}",
+            model="command-r-plus"
+        )
+        st.info(kpi_response.text)
+        st.markdown(generate_pdf_report("Vora Chevron Summary", kpi_response.text), unsafe_allow_html=True)
+
+    except Exception as e:
+        st.error(f"💥 AI Error: {e}")
+
+    # 📊 Visual Generator
+    st.markdown("### 📈 Smart Chart Generator")
+    try:
+        num_cols = df.select_dtypes(include=np.number).columns.tolist()
+        if len(num_cols) >= 2:
+            x_col = st.selectbox("📌 Select X-Axis", num_cols)
+            y_col = st.selectbox("📌 Select Y-Axis", [c for c in num_cols if c != x_col])
+            st.plotly_chart(px.line(df, x=x_col, y=y_col, title=f"{y_col} over {x_col}"), use_container_width=True)
+        else:
+            st.warning("⚠️ Not enough numeric columns for visualization.")
+    except Exception as e:
+        st.error(f"Plotting error: {e}")
+
+    # 🧪 Forecasting
+    st.markdown("### 🧪 Forecasting")
+    try:
+        time_col = st.selectbox("📆 Select Date Column", [c for c in df.columns if 'date' in c.lower()])
+        metric_col = st.selectbox("📊 Metric to Forecast", [c for c in df.columns if df[c].dtype in ['float64', 'int64']])
+        df_fc = df[[time_col, metric_col]].dropna()
+        df_fc.columns = ['ds', 'y']
+        df_fc['ds'] = pd.to_datetime(df_fc['ds'])
+        model = Prophet()
+        model.fit(df_fc)
+        future = model.make_future_dataframe(periods=12, freq='M')
+        forecast = model.predict(future)
+        fig = px.line(forecast, x='ds', y='yhat', title=f"{metric_col} Forecast")
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.warning(f"Forecasting failed: {e}")
+
+    # 🧠 Ask Vora (Custom Prompt)
+    st.markdown("### 🤖 Ask Vora")
+    user_q = st.text_area("Type your question (e.g. What is the average output per region?)")
+    if st.button("🧠 Ask Vora"):
         try:
-            co = cohere.Client(cohere_key)
-            sample = df.head(5).to_string(index=False)
-            stats = df.describe(include='all').fillna('').to_string()
-            structure = f"Sample Data:\n{sample}\n\nStats:\n{stats}"
-
-            detect_prompt = f"""
-            You are an AI that analyzes Excel data. Detect which of the following roles this dataset fits:
-            - Finance
-            - Operations
-            - Market
-            - Supply Chain
-            - Policy
-            Then suggest key KPIs and chart types.\n\n{structure}
-            """
-
-            response = co.chat(message=detect_prompt, model="command-r-plus", temperature=0.4)
-            st.info(response.text)
+            context = df.head(10).to_csv(index=False)
+            vora_response = co.chat(
+                message=f"Chevron dataset preview:\n{context}\n\nUser asks: {user_q}",
+                model="command-r-plus"
+            )
+            st.success(vora_response.text)
         except Exception as e:
-            st.error(f"Cohere Error: {e}")
+            st.error(f"AI Assistant Error: {e}")
 
-    # ----- DYNAMIC KPI & CHARTS -----
-    st.subheader("📊 Dynamic KPIs & Visuals")
-    if {'Cash Flow (USD)', 'Project'}.issubset(df.columns):
-        project = st.selectbox("Select Project", df["Project"].unique())
-        proj_df = df[df["Project"] == project]
-        cash_flows = proj_df["Cash Flow (USD)"].tolist()
-        npv = sum(cf / (1 + 0.1)**i for i, cf in enumerate(cash_flows))
-        irr = np.irr(cash_flows)
-        cumulative = np.cumsum(cash_flows)
-        payback = next((i for i, v in enumerate(cumulative) if v >= 0), None)
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("NPV", f"${npv:,.2f}")
-        col2.metric("IRR", f"{irr:.2%}" if irr else "N/A")
-        col3.metric("Payback", f"{payback} years" if payback else "Not recovered")
-
-        st.plotly_chart(px.bar(proj_df, x=proj_df.index, y="Cash Flow (USD)", title="Project Cash Flow"))
-    
-    elif {'Well', 'Daily Output'}.issubset(df.columns):
-        st.metric("Avg Daily Output", f"{df['Daily Output'].mean():,.2f} bbl")
-        st.metric("Max Output", f"{df['Daily Output'].max():,.2f} bbl")
-        st.plotly_chart(px.line(df, x='Well', y='Daily Output', title="Production per Well"))
-
-    elif {'Brent Price', 'WTI Price'}.issubset(df.columns):
-        df['Date'] = pd.to_datetime(df['Date'])
-        st.line_chart(df.set_index('Date')[['Brent Price', 'WTI Price']])
-
-    elif {'Route', 'Delivery Time (days)'}.issubset(df.columns):
-        st.plotly_chart(px.box(df, x="Route", y="Delivery Time (days)", title="Delivery Efficiency"))
-
-    # ----- ASK VORA -----
-    st.subheader("🤖 Ask Vora (AI Assistant)")
-    user_q = st.text_area("Ask anything about your data (e.g. average cost, plot pressure trend):")
-    if st.button("Ask Vora") and user_q and cohere_key:
-        try:
-            sample = df.head(10).to_csv(index=False)
-            prompt = f"You are a Chevron-grade data analyst. Analyze this sample:\n{sample}\n\nNow answer: {user_q}"
-            response = co.chat(message=prompt, model="command-r-plus", temperature=0.5)
-            st.success(response.text)
-        except Exception as e:
-            st.error(f"Vora AI Error: {e}")
 else:
-    st.info("⬅️ Upload a file to get started.")
+    st.info("👈 Upload your Chevron-style Excel file to get started.")
