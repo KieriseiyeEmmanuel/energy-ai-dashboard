@@ -1,137 +1,127 @@
+# VORA 2.0 – Chevron-Grade AI Analyst Platform
+
 import streamlit as st
 import pandas as pd
 import numpy as np
-import numpy_financial as npf
 import plotly.express as px
+import plotly.graph_objects as go
+import numpy_financial as npf
 from prophet import Prophet
-from fpdf import FPDF
 import cohere
+from fpdf import FPDF
 import io
 import base64
+from datetime import datetime
+import json
+import os
 
-# 🎨 Page setup
-st.set_page_config(page_title="🛸 Vora – Chevron AI Analyst", layout="wide")
+# Setup
+st.set_page_config(page_title="VORA – Chevron AI Analyst", layout="wide", page_icon="🛸")
 
-# 🌌 Sci-fi theme styling
+# --- CSS Sci-Fi Styling ---
 st.markdown("""
     <style>
-    .main, .stApp {
-        background-color: #0d1117;
-        color: #c9d1d9;
-        font-family: 'Orbitron', sans-serif;
-    }
-    .stTextInput > div > div > input, .stTextArea > div > textarea {
-        background-color: #161b22;
-        color: #c9d1d9;
-        border: 1px solid #30363d;
-        border-radius: 10px;
-    }
-    .stButton > button {
-        background-color: #58a6ff;
-        color: black;
-        border-radius: 1rem;
-        font-weight: bold;
-    }
+    body { background-color: #0f111a; color: #c9d1d9; font-family: 'Orbitron', sans-serif; }
+    .stApp { background: linear-gradient(135deg, #0d1117, #111b26); }
+    .stButton>button { background: #58a6ff; border-radius: 10px; font-weight: bold; }
+    .stTextInput>div>div>input, .stTextArea>div>textarea { background: #161b22; color: white; border-radius: 10px; }
+    .stSidebar { background: #0d1117; }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🛸 Vora – Chevron-Grade AI Energy Dashboard")
-st.markdown("### 👁️ Chevron’s Vision of AI-Augmented Business Intelligence")
+st.title("🛸 VORA – Chevron AI Intelligence Platform")
 
-# 📤 Upload
-uploaded_file = st.file_uploader("📥 Upload Chevron Excel File", type=["xlsx"])
+# Globals
+cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("Enter Cohere API Key", type="password")
+session_log = st.session_state.get("log", [])
+uploaded_file = st.file_uploader("📥 Upload Chevron-Style Excel File", type=["xlsx"])
 
-# 🧠 API Key
-cohere_key = st.secrets["COHERE_API_KEY"] if "COHERE_API_KEY" in st.secrets else st.text_input("🔑 Enter Cohere API Key", type="password")
-
-# 🔍 PDF Report Export
-def generate_pdf_report(title, summary):
+# --- Helper: PDF Report Generator ---
+def generate_pdf_report(title, content):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
-    pdf.set_text_color(33, 37, 41)
     pdf.cell(200, 10, txt=title, ln=True, align='C')
     pdf.ln(10)
-    pdf.multi_cell(0, 10, txt=summary)
+    pdf.multi_cell(0, 10, txt=content)
+    file_path = "vora_report.pdf"
+    pdf.output(file_path)
+    with open(file_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
+        return f'<a href="data:application/pdf;base64,{b64}" download="VORA_Report.pdf">📄 Download Report</a>'
 
-    # Return as downloadable base64 PDF
-    pdf_output = pdf.output(dest='S').encode('latin1')  # Get PDF string
-    b64 = base64.b64encode(pdf_output).decode()
-    return f'<a href="data:application/pdf;base64,{b64}" download="vora_report.pdf">📄 Download PDF Report</a>'
-
-
-# 🧠 Smart Assistant + Auto Detection
-if uploaded_file:
-    df = pd.read_excel(uploaded_file)
-    st.sidebar.success("✅ File uploaded successfully!")
-
-    st.subheader("🧬 AI Role Detection & Insights")
-    preview = df.head(5).to_string(index=False)
-    describe = df.describe(include='all').fillna('').to_string()
-
+# --- Helper: AI Call to Cohere ---
+def cohere_insight(message):
+    if not cohere_key:
+        return "🔐 Please provide Cohere API key."
     try:
         co = cohere.Client(cohere_key)
-        detect_response = co.chat(
-            message=f"Given this Chevron dataset preview:\n\n{preview}\n\n{describe}\n\nWhat type of business role best fits this data (e.g. finance, operations, supply chain, etc)? What KPIs and visualizations would be useful?",
-            model="command-r-plus",
-            temperature=0.5
-        )
-        st.success(detect_response.text)
-
-        st.markdown("### 📌 Detected Role Suggestions and KPIs")
-        kpi_response = co.chat(
-            message=f"Summarize 3 key KPIs from this data:\n\n{preview}\n\n{describe}",
-            model="command-r-plus"
-        )
-        st.info(kpi_response.text)
-        st.markdown(generate_pdf_report("Vora Chevron Summary", kpi_response.text), unsafe_allow_html=True)
-
+        response = co.chat(message=message, model="command-r-plus", temperature=0.4)
+        return response.text
     except Exception as e:
-        st.error(f"💥 AI Error: {e}")
+        return f"❌ AI Error: {e}"
 
-    # 📊 Visual Generator
-    st.markdown("### 📈 Smart Chart Generator")
-    try:
-        num_cols = df.select_dtypes(include=np.number).columns.tolist()
-        if len(num_cols) >= 2:
-            x_col = st.selectbox("📌 Select X-Axis", num_cols)
-            y_col = st.selectbox("📌 Select Y-Axis", [c for c in num_cols if c != x_col])
-            st.plotly_chart(px.line(df, x=x_col, y=y_col, title=f"{y_col} over {x_col}"), use_container_width=True)
-        else:
-            st.warning("⚠️ Not enough numeric columns for visualization.")
-    except Exception as e:
-        st.error(f"Plotting error: {e}")
+# --- Main Logic ---
+if uploaded_file:
+    df = pd.read_excel(uploaded_file)
+    st.success("✅ File uploaded successfully.")
+    preview = df.head(5).to_string(index=False)
+    summary = df.describe(include="all").to_string()
+    structure = f"Preview:\n{preview}\n\nStats:\n{summary}"
 
-    # 🧪 Forecasting
+    # Smart Role Detection
+    st.subheader("🔍 Smart Role Detection")
+    role_prompt = f"You are a Chevron data analyst. Based on this dataset structure, what type of business role is this? Choose from: Project Finance, Operations, Market Intelligence, Forecasting, Policy, Logistics\n\n{structure}"
+    detected_role = cohere_insight(role_prompt)
+    st.markdown(f"**🔧 Detected Role:** `{detected_role.strip()}`")
+
+    # AI KPIs and Visual Suggestions
+    st.subheader("📊 AI Insights & KPIs")
+    kpi_prompt = f"You are an energy data scientist. Suggest 3 KPIs and charts to show for this dataset.\n\n{structure}"
+    kpi_response = cohere_insight(kpi_prompt)
+    st.info(kpi_response)
+
+    # Embedded VORA Chat
+    st.subheader("🤖 Ask Vora Anything")
+    query = st.text_area("Ask a question about your data")
+    if st.button("Ask"):
+        sample = df.head(10).to_csv(index=False)
+        response = cohere_insight(f"Dataset:\n{sample}\n\nQuestion: {query}")
+        st.success(response)
+
+    # Dynamic Visual Cards
+    st.subheader("📌 Data Snapshot")
+    for col in df.select_dtypes(include=['float64', 'int64']).columns[:3]:
+        st.metric(label=f"{col} (avg)", value=f"{df[col].mean():,.2f}")
+
+    # Chart
+    st.subheader("📈 Smart Chart")
+    numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
+    if numeric_cols:
+        x_col = st.selectbox("X-axis", df.columns)
+        y_col = st.selectbox("Y-axis", numeric_cols)
+        st.plotly_chart(px.line(df, x=x_col, y=y_col), use_container_width=True)
+
+    # Forecasting
     st.markdown("### 🧪 Forecasting")
-    try:
-        time_col = st.selectbox("📆 Select Date Column", [c for c in df.columns if 'date' in c.lower()])
-        metric_col = st.selectbox("📊 Metric to Forecast", [c for c in df.columns if df[c].dtype in ['float64', 'int64']])
-        df_fc = df[[time_col, metric_col]].dropna()
-        df_fc.columns = ['ds', 'y']
-        df_fc['ds'] = pd.to_datetime(df_fc['ds'])
-        model = Prophet()
-        model.fit(df_fc)
-        future = model.make_future_dataframe(periods=12, freq='M')
-        forecast = model.predict(future)
-        fig = px.line(forecast, x='ds', y='yhat', title=f"{metric_col} Forecast")
-        st.plotly_chart(fig, use_container_width=True)
-    except Exception as e:
-        st.warning(f"Forecasting failed: {e}")
+    if "Date" in df.columns:
+        forecast_df = df[["Date", y_col]].rename(columns={"Date": "ds", y_col: "y"}).dropna()
+        forecast_df["ds"] = pd.to_datetime(forecast_df["ds"])
+        m = Prophet()
+        m.fit(forecast_df)
+        future = m.make_future_dataframe(periods=6, freq="M")
+        forecast = m.predict(future)
+        st.plotly_chart(px.line(forecast, x="ds", y="yhat"), use_container_width=True)
+        st.dataframe(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail())
 
-    # 🧠 Ask Vora (Custom Prompt)
-    st.markdown("### 🤖 Ask Vora")
-    user_q = st.text_area("Type your question (e.g. What is the average output per region?)")
-    if st.button("🧠 Ask Vora"):
-        try:
-            context = df.head(10).to_csv(index=False)
-            vora_response = co.chat(
-                message=f"Chevron dataset preview:\n{context}\n\nUser asks: {user_q}",
-                model="command-r-plus"
-            )
-            st.success(vora_response.text)
-        except Exception as e:
-            st.error(f"AI Assistant Error: {e}")
+    # Report Download
+    st.subheader("📄 AI Report")
+    report = generate_pdf_report("Vora Chevron Summary", kpi_response)
+    st.markdown(report, unsafe_allow_html=True)
 
 else:
-    st.info("👈 Upload your Chevron-style Excel file to get started.")
+    st.warning("👈 Upload a Chevron-style Excel file to begin")
+
+# Log user activity
+session_log.append({"timestamp": str(datetime.now()), "file_uploaded": bool(uploaded_file), "query": query if 'query' in locals() else ""})
+st.session_state["log"] = session_log
