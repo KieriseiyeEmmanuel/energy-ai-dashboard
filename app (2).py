@@ -53,11 +53,12 @@ def generate_pdf_report(title, summary):
     pdf.cell(200, 10, txt=title, ln=True, align='C')
     pdf.ln(10)
     pdf.multi_cell(0, 10, txt=summary)
-    buffer = io.BytesIO()
-    pdf.output(buffer, 'F')
-    buffer.seek(0)
-    b64 = base64.b64encode(buffer.read()).decode()
+
+    # Return as downloadable base64 PDF
+    pdf_output = pdf.output(dest='S').encode('latin1')  # Get PDF string
+    b64 = base64.b64encode(pdf_output).decode()
     return f'<a href="data:application/pdf;base64,{b64}" download="vora_report.pdf">📄 Download PDF Report</a>'
+
 
 # 🧠 Smart Assistant + Auto Detection
 if uploaded_file:
