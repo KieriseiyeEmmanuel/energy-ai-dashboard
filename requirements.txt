@@ -2,11 +2,12 @@ streamlit
 pandas
 numpy
 numpy-financial
-openpyxl
 plotly
-openai
-cohere
+matplotlib
 seaborn
-prophet
+cohere
 fpdf
+prophet
 statsmodels
+speechrecognition
+soundfile
