@@ -13,3 +13,4 @@ speechrecognition
 soundfile
 statsmodels
 scipy
+openpyxl
