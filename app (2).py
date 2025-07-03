@@ -8,7 +8,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from prophet import Prophet
 from statsmodels.tsa.arima.model import ARIMA
-import statsmodels.api as sm  # ✅ Required for trendline="ols"
 import io, base64, os
 from fpdf import FPDF
 from datetime import datetime
@@ -107,18 +106,8 @@ if uploaded_file:
     st.subheader("📈 Smart Chart Suggestions")
     numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
     if len(numeric_cols) >= 2:
-        try:
-            chart = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1])
-            st.plotly_chart(chart)
-        except ImportError as e:
-            st.warning("⚠️ Trendline requires 'statsmodels'. Showing basic scatter chart.")
-            chart = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1])
-            st.plotly_chart(chart)
-        except Exception as e:
-            st.warning(f"❌ Chart error: {e}")
-            st.info("Try a simpler dataset or remove trendline.")
-    else:
-        st.info("ℹ️ Not enough numeric columns for scatter chart.")
+        chart = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1], trendline="ols")
+        st.plotly_chart(chart)
 
     # --------- Forecasting (Prophet + ARIMA) ---------
     st.markdown("### 🔮 Forecasting Engine")
@@ -162,6 +151,5 @@ if uploaded_file:
     # --------- Session Memory ---------
     st.markdown("### 🧠 Query Memory")
     st.json(st.session_state.query_log)
-
 else:
     st.info("👈 Upload your Excel file and enter AI key to begin.")
