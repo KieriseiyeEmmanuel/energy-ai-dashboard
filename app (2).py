@@ -108,7 +108,7 @@ if uploaded_file:
     numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
     if len(numeric_cols) >= 2:
         try:
-            chart = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1], trendline="ols")
+            chart = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1])
             st.plotly_chart(chart)
         except ImportError as e:
             st.warning("⚠️ Trendline requires 'statsmodels'. Showing basic scatter chart.")
