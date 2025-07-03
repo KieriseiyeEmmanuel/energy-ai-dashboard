@@ -12,3 +12,4 @@ statsmodels
 speechrecognition
 soundfile
 statsmodels
+scipy
