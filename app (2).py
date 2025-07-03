@@ -8,6 +8,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from prophet import Prophet
 from statsmodels.tsa.arima.model import ARIMA
+import statsmodels.api as sm
 import io, base64, os
 from fpdf import FPDF
 from datetime import datetime
