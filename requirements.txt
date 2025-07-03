@@ -11,6 +11,5 @@ prophet
 statsmodels
 speechrecognition
 soundfile
-statsmodels
 scipy
 openpyxl
